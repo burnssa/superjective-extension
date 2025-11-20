@@ -27,24 +27,49 @@ const draftsContainer = document.getElementById('drafts-container');
 const actionsSection = document.getElementById('actions-section');
 const regenerateBtn = document.getElementById('regenerate-btn');
 const piiNotice = document.getElementById('pii-notice');
+const insertHint = document.getElementById('insert-hint');
 
 // PII Filter instance
 const piiFilter = new PIIFilter();
 
 // Initialize
 async function init() {
+  // Set up message listener FIRST (before async operations)
+  setupMessageListener();
+
   // Check auth status
   const authStatus = await sendMessage({ action: 'checkAuth' });
   state.authenticated = authStatus.authenticated;
 
   if (state.authenticated) {
     showScreen('main');
+    // Don't auto-generate - let user add context first
   } else {
     showScreen('auth');
   }
 
-  // Set up event listeners
+  // Set up other event listeners
   setupEventListeners();
+}
+
+// Set up message listener immediately to catch INIT_SIDEBAR
+function setupMessageListener() {
+  window.addEventListener('message', (event) => {
+    console.log('Sidebar received message:', event.data);
+    if (event.data.type === 'INIT_SIDEBAR') {
+      console.log('Setting selectedText to:', event.data.selectedText);
+      state.selectedText = event.data.selectedText;
+      // Don't auto-generate - let user add context first and click Generate
+    }
+
+    if (event.data.type === 'COPY_SUCCESS') {
+      showToast('Copied to clipboard!');
+    }
+
+    if (event.data.type === 'INSERT_SUCCESS') {
+      // Already showing toast in insert handler
+    }
+  });
 }
 
 function setupEventListeners() {
@@ -58,19 +83,11 @@ function setupEventListeners() {
     state.context = e.target.value;
   });
 
-  // Listen for init message from content script
-  window.addEventListener('message', (event) => {
-    if (event.data.type === 'INIT_SIDEBAR') {
-      state.selectedText = event.data.selectedText;
-      // Auto-generate on init
-      if (state.authenticated) {
-        handleGenerate();
-      }
-    }
-
-    if (event.data.type === 'COPY_SUCCESS') {
-      // Show brief feedback
-      showToast('Copied to clipboard!');
+  // Enter key triggers generate
+  contextInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleGenerate();
     }
   });
 }
@@ -115,9 +132,19 @@ async function handleGenerate() {
   const filteredPrompt = piiFilter.filter(state.selectedText);
   const filteredContext = state.context ? piiFilter.filter(state.context) : '';
 
+  // Debug logging for PII filtering
+  console.log('PII Filter - Original prompt:', state.selectedText);
+  console.log('PII Filter - Filtered prompt:', filteredPrompt);
+  if (state.context) {
+    console.log('PII Filter - Original context:', state.context);
+    console.log('PII Filter - Filtered context:', filteredContext);
+  }
+
   // Check if PII was filtered
   const piiFiltered = filteredPrompt !== state.selectedText ||
     (state.context && filteredContext !== state.context);
+
+  console.log('PII Filter - Was PII filtered?', piiFiltered);
 
   if (piiFiltered) {
     piiNotice.classList.remove('hidden');
@@ -163,6 +190,13 @@ async function handleSelectDraft(responseId) {
   state.selectedDraftId = responseId;
   updateUI();
 
+  // Auto-insert the selected draft
+  const selectedDraft = state.drafts.find(d => d.response_id === responseId);
+  if (selectedDraft) {
+    handleInsertDraft(selectedDraft.text);
+    showToast('Draft inserted!');
+  }
+
   try {
     // Build response feedback
     const responseFeedback = state.drafts.map(draft => ({
@@ -189,6 +223,14 @@ async function handleSelectDraft(responseId) {
 function handleCopyDraft(text) {
   window.parent.postMessage({
     type: 'COPY_TO_CLIPBOARD',
+    text
+  }, '*');
+}
+
+// Insert draft text into the original input
+function handleInsertDraft(text) {
+  window.parent.postMessage({
+    type: 'INSERT_TEXT',
     text
   }, '*');
 }
@@ -221,39 +263,46 @@ function updateUI() {
   if (state.drafts.length > 0) {
     renderDrafts();
     actionsSection.classList.remove('hidden');
+    insertHint.classList.remove('hidden');
+  } else {
+    insertHint.classList.add('hidden');
   }
 }
 
 function renderDrafts() {
+  const hasSelection = state.selectedDraftId !== null;
+
   draftsContainer.innerHTML = state.drafts.map((draft, index) => {
     const isSelected = state.selectedDraftId === draft.response_id;
+    const isNotSelected = hasSelection && !isSelected;
     const providerInitial = draft.provider ? draft.provider[0].toUpperCase() : '?';
 
     return `
-      <div class="draft-card ${isSelected ? 'selected' : ''}" data-response-id="${draft.response_id}">
+      <div class="draft-card ${isSelected ? 'selected' : ''} ${isNotSelected ? 'not-selected' : ''}" data-response-id="${draft.response_id}">
         <div class="draft-header">
           <div class="draft-info">
             <div class="provider-badge">${providerInitial}</div>
             <span class="draft-label">Draft ${index + 1}</span>
           </div>
           ${isSelected ? '<span class="selected-badge">✓ Selected</span>' : ''}
+          ${isNotSelected ? '<span class="not-selected-badge">Not selected</span>' : ''}
         </div>
 
         <div class="draft-text">${escapeHtml(draft.text)}</div>
 
         <div class="draft-actions">
-          ${!isSelected ? `
+          ${!hasSelection ? `
             <button class="btn btn-primary select-btn" data-response-id="${draft.response_id}">
               Select This Draft
             </button>
           ` : `
             <button class="btn btn-secondary copy-btn" data-text="${escapeAttr(draft.text)}">
-              Copy to Clipboard
+              Copy Draft
             </button>
           `}
         </div>
 
-        ${isSelected ? `
+        ${hasSelection ? `
           <div class="model-details">
             <strong>Provider:</strong> ${escapeHtml(draft.provider)}<br>
             <strong>Model:</strong> ${escapeHtml(draft.model_name || 'Unknown')}
@@ -274,6 +323,7 @@ function renderDrafts() {
   draftsContainer.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       handleCopyDraft(btn.dataset.text);
+      showToast('Copied to clipboard!');
     });
   });
 }

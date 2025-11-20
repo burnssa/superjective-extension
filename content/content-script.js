@@ -2,10 +2,15 @@
 // Injects sidebar into web pages and handles communication
 
 let sidebarIframe = null;
+let activeInputElement = null; // Store the element where text was selected
 
 // Listen for messages from background worker
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Content script received message:', request);
   if (request.action === 'openSidebar') {
+    console.log('Opening sidebar with text:', request.text);
+    // Capture the active element (input/textarea/contenteditable)
+    activeInputElement = document.activeElement;
     openSidebar(request.text);
     sendResponse({ success: true });
   }
@@ -78,7 +83,104 @@ window.addEventListener('message', (event) => {
       }, '*');
     });
   }
+
+  if (event.data.type === 'INSERT_TEXT') {
+    insertTextIntoElement(event.data.text);
+    // Notify sidebar that insert was successful
+    sidebarIframe?.contentWindow.postMessage({
+      type: 'INSERT_SUCCESS'
+    }, '*');
+  }
 });
+
+// Insert text into the active input element
+function insertTextIntoElement(text) {
+  // Try to find the best element to insert into:
+  // 1. Use activeInputElement if it's still valid
+  // 2. Check if there's a currently focused editable element
+  // 3. Search for common compose elements on the page
+  // 4. Fall back to clipboard
+
+  let targetElement = null;
+
+  // First check if there's a currently focused editable element
+  const currentActive = document.activeElement;
+  if (isEditableElement(currentActive)) {
+    targetElement = currentActive;
+  }
+
+  // If not, use the stored activeInputElement if it's still in the DOM
+  if (!targetElement && activeInputElement && document.body.contains(activeInputElement)) {
+    targetElement = activeInputElement;
+  }
+
+  // If still not found, search for common compose elements
+  if (!targetElement) {
+    targetElement = findEditableElement();
+  }
+
+  if (!targetElement) {
+    console.log('No editable element found, copying to clipboard');
+    navigator.clipboard.writeText(text);
+    return;
+  }
+
+  console.log('Inserting text into:', targetElement.tagName, targetElement);
+
+  // Handle different element types
+  if (targetElement.tagName === 'TEXTAREA' || targetElement.tagName === 'INPUT') {
+    targetElement.value = text;
+    targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+  } else if (targetElement.isContentEditable || targetElement.contentEditable === 'true') {
+    targetElement.innerHTML = text.replace(/\n/g, '<br>');
+    targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+  } else {
+    const editableParent = targetElement.closest('[contenteditable="true"]');
+    if (editableParent) {
+      editableParent.innerHTML = text.replace(/\n/g, '<br>');
+      editableParent.dispatchEvent(new Event('input', { bubbles: true }));
+    } else {
+      navigator.clipboard.writeText(text);
+    }
+  }
+}
+
+// Check if an element is editable
+function isEditableElement(el) {
+  if (!el) return false;
+  return (
+    el.tagName === 'TEXTAREA' ||
+    (el.tagName === 'INPUT' && ['text', 'email', 'search', 'url'].includes(el.type)) ||
+    el.isContentEditable ||
+    el.contentEditable === 'true'
+  );
+}
+
+// Find common compose/message elements on the page
+function findEditableElement() {
+  const selectors = [
+    // Gmail compose
+    '[contenteditable="true"][aria-label*="message" i]',
+    '[contenteditable="true"][aria-label*="body" i]',
+    // LinkedIn
+    '[contenteditable="true"][aria-label*="compose" i]',
+    '[contenteditable="true"][role="textbox"]',
+    // Generic
+    'textarea[name*="message" i]',
+    'textarea[name*="body" i]',
+    'textarea:not([readonly])',
+    '[contenteditable="true"]'
+  ];
+
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    if (el && document.body.contains(el)) {
+      return el;
+    }
+  }
+
+  return null;
+}
 
 // Allow closing sidebar with Escape key
 document.addEventListener('keydown', (event) => {

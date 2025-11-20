@@ -1,16 +1,18 @@
 // Superjective Extension - Background Service Worker
 // Handles Auth0 OAuth, API calls, and message passing
 
-const API_BASE = 'https://api.superjective.com';
-const AUTH0_DOMAIN = 'YOUR_AUTH0_DOMAIN'; // e.g., 'superjective.us.auth0.com'
-const AUTH0_CLIENT_ID = 'YOUR_AUTH0_CLIENT_ID';
-const AUTH0_AUDIENCE = 'https://api.superjective.com';
+import { CONFIG } from '../config.js';
+
+const API_BASE = CONFIG.API_BASE;
+const AUTH0_DOMAIN = CONFIG.AUTH0_DOMAIN;
+const AUTH0_CLIENT_ID = CONFIG.AUTH0_CLIENT_ID;
+const AUTH0_AUDIENCE = CONFIG.AUTH0_AUDIENCE;
 
 // Create context menu when extension installs
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'generate-response',
-    title: 'Generate AI Response',
+    title: 'Create AI Draft Responses',
     contexts: ['selection']
   });
 });
@@ -19,11 +21,16 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'generate-response') {
     const selectedText = info.selectionText;
+    console.log('Context menu clicked, selected text:', selectedText);
 
     // Send message to content script to open sidebar
     chrome.tabs.sendMessage(tab.id, {
       action: 'openSidebar',
       text: selectedText
+    }).then(() => {
+      console.log('Message sent to content script');
+    }).catch(err => {
+      console.error('Failed to send message:', err);
     });
   }
 });
@@ -229,6 +236,14 @@ async function getAccessToken() {
 async function generateDrafts({ prompt, context }) {
   const token = await getAccessToken();
 
+  // Build the full prompt with system instructions
+  const systemInstructions = `Generate a plain text email response. Do not use markdown formatting (no **, *, #, etc.). Write naturally as you would in an authentic email.`;
+
+  let fullPrompt = `${systemInstructions}\n\n${prompt}`;
+  if (context) {
+    fullPrompt += `\n\nContext: ${context}`;
+  }
+
   // Step 1: Create comparison
   const comparisonResponse = await fetch(`${API_BASE}/api/comparisons`, {
     method: 'POST',
@@ -237,7 +252,7 @@ async function generateDrafts({ prompt, context }) {
       'Authorization': `Bearer ${token}`
     },
     body: JSON.stringify({
-      prompt: context ? `${prompt}\n\nContext: ${context}` : prompt
+      prompt: fullPrompt
     })
   });
 
@@ -256,7 +271,7 @@ async function generateDrafts({ prompt, context }) {
       'Authorization': `Bearer ${token}`
     },
     body: JSON.stringify({
-      prompt: context ? `${prompt}\n\nContext: ${context}` : prompt,
+      prompt: fullPrompt,
       comparison_id: comparison.id
     })
   });
@@ -268,18 +283,32 @@ async function generateDrafts({ prompt, context }) {
 
   const result = await generateResponse.json();
 
-  // Format for sidebar
+  // Step 3: Fetch comparison to get actual response IDs from database
+  const fetchComparisonResponse = await fetch(`${API_BASE}/api/comparisons/${comparison.id}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!fetchComparisonResponse.ok) {
+    throw new Error('Failed to fetch comparison details');
+  }
+
+  const comparisonWithResponses = await fetchComparisonResponse.json();
+
+  // Format for sidebar - use actual database response IDs
   return {
     comparison_id: comparison.id,
-    drafts: result.responses.map((r, index) => ({
-      response_id: comparison.responses?.[index]?.id || index,
-      text: r.text,
-      model_id: r.llm_id,
-      provider: r.metadata.provider,
-      model_name: r.llm_name,
-      display_order: r.metadata.display_order
+    drafts: comparisonWithResponses.responses.map((r, index) => ({
+      response_id: r.id,
+      text: r.content,
+      model_id: parseInt(r.llm_id),
+      provider: r.language_model.provider,
+      model_name: r.language_model.name,
+      display_order: r.display_order
     })),
-    response_count: result.response_count
+    response_count: comparisonWithResponses.responses.length
   };
 }
 

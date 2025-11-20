@@ -155,6 +155,17 @@ body {
   font-size: 14px;
 }
 
+/* Insert Hint */
+.insert-hint {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
 /* Context Section */
 .context-section {
   padding: 16px;
@@ -257,6 +268,12 @@ body {
   background: #f0fdf4;
 }
 
+.draft-card.not-selected {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  opacity: 0.85;
+}
+
 .draft-header {
   display: flex;
   align-items: center;
@@ -293,6 +310,12 @@ body {
   font-size: 12px;
   color: #16a34a;
   font-weight: 500;
+}
+
+.not-selected-badge {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 400;
 }
 
 .draft-text {
