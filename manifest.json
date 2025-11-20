@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "Superjective - AI Draft Generator",
+  "version": "1.0.0",
+  "description": "Generate professional responses using multiple AI models with privacy-first PII filtering",
+
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "identity"
+  ],
+
+  "host_permissions": [
+    "https://api.superjective.com/*",
+    "https://*.auth0.com/*"
+  ],
+
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content-script.js"],
+      "css": ["sidebar/styles.css"]
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["sidebar/index.html", "sidebar/sidebar.js", "lib/pii-filter.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "Superjective"
+  },
+
+  "oauth2": {
+    "client_id": "YOUR_AUTH0_CLIENT_ID",
+    "scopes": ["openid", "profile", "email"]
+  }
+}

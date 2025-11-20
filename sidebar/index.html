@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superjective - AI Drafts</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app" class="sidebar-container">
+    <!-- Auth Screen -->
+    <div id="auth-screen" class="screen hidden">
+      <div class="auth-content">
+        <div class="logo">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 17L12 22L22 17" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2 12L12 17L22 12" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1>Superjective</h1>
+        <p>Sign in to generate AI response drafts</p>
+        <button id="login-btn" class="btn btn-primary">Sign In with Auth0</button>
+      </div>
+    </div>
+
+    <!-- Main Screen -->
+    <div id="main-screen" class="screen hidden">
+      <!-- Header -->
+      <div class="header">
+        <h2>AI Response Drafts</h2>
+        <button id="close-btn" class="btn-icon" title="Close">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- PII Notice -->
+      <div id="pii-notice" class="pii-notice hidden">
+        <span class="pii-icon">🔒</span>
+        <span>PII filtered before sending</span>
+        <button id="pii-details-btn" class="btn-link">Details</button>
+      </div>
+
+      <!-- Context Field -->
+      <div class="context-section">
+        <label for="context-input">Additional Context (optional)</label>
+        <textarea
+          id="context-input"
+          placeholder="Job description, background info, tone preferences..."
+          rows="3"
+        ></textarea>
+        <button id="generate-btn" class="btn btn-primary">Generate with Context</button>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-state" class="loading-state hidden">
+        <div class="spinner"></div>
+        <p>Generating drafts from multiple AI models...</p>
+      </div>
+
+      <!-- Error State -->
+      <div id="error-state" class="error-state hidden">
+        <p id="error-message"></p>
+        <button id="retry-btn" class="btn btn-secondary">Retry</button>
+      </div>
+
+      <!-- Drafts List -->
+      <div id="drafts-container" class="drafts-container"></div>
+
+      <!-- Actions -->
+      <div id="actions-section" class="actions-section hidden">
+        <button id="regenerate-btn" class="btn btn-secondary">
+          <span>↻</span> Regenerate All
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../lib/pii-filter.js"></script>
+  <script src="sidebar.js"></script>
+</body>
+</html>
