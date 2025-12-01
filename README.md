@@ -1,12 +1,12 @@
 # Superjective Chrome Extension
 
-Generate AI email drafts that actually sound like you. Compare responses from multiple AI models and pick the one that fits best.
+Generate the best email drafts for you with frontier AI, while controlling the data you share and the final text you send. Compare responses from the strongest models on the market and pick the one that fits your needs.
 
 ## Why Superjective?
 
-Most AI writing tools give you one response from one model. But different AI models have different strengths—some are more concise, others more friendly, others more formal. Superjective shows you drafts from multiple models so you can choose what works best for each situation.
+Most AI writing tools give you a single option from one model. But models vary in their strengths and styles. With instant access to drafts from multiple cutting edge AI providers, you get a running start on your message, with content to match your tastes and preferences. Superjective shows you the best drafts, and you choose what works. You also stay in control of your privacy, only sharing the specific data you choose, while sensitive content is automatically filtered before being sent for AI prompting,
 
-Over time, the system learns your preferences using Thompson Sampling and gets better at selecting models you'll like.
+Over time, the system learns your preferences using Thompson Sampling and gets better at showing options you'll like.
 
 ## How It Works
 
