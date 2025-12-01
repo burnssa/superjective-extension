@@ -16,6 +16,7 @@ let state = {
 const authScreen = document.getElementById('auth-screen');
 const mainScreen = document.getElementById('main-screen');
 const loginBtn = document.getElementById('login-btn');
+const logoutBtn = document.getElementById('logout-btn');
 const closeBtn = document.getElementById('close-btn');
 const contextInput = document.getElementById('context-input');
 const generateBtn = document.getElementById('generate-btn');
@@ -74,6 +75,7 @@ function setupMessageListener() {
 
 function setupEventListeners() {
   loginBtn.addEventListener('click', handleLogin);
+  logoutBtn.addEventListener('click', handleLogout);
   closeBtn.addEventListener('click', handleClose);
   generateBtn.addEventListener('click', () => handleGenerate());
   retryBtn.addEventListener('click', () => handleGenerate());
@@ -113,7 +115,21 @@ async function handleLogin() {
     alert('Login failed: ' + error.message);
   } finally {
     loginBtn.disabled = false;
-    loginBtn.textContent = 'Sign In with Auth0';
+    loginBtn.textContent = 'Continue';
+  }
+}
+
+async function handleLogout() {
+  try {
+    await sendMessage({ action: 'logout' });
+    state.authenticated = false;
+    state.drafts = [];
+    state.comparisonId = null;
+    state.selectedDraftId = null;
+    showScreen('auth');
+    showToast('Signed out');
+  } catch (error) {
+    console.error('Logout failed:', error);
   }
 }
 

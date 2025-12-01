@@ -1,16 +1,25 @@
 // Superjective Extension - Content Script
 // Injects sidebar into web pages and handles communication
 
+// Guard against duplicate injection
+if (window.superjective_loaded) {
+  console.log('Superjective content script already loaded, skipping');
+} else {
+  window.superjective_loaded = true;
+}
+
 let sidebarIframe = null;
-let activeInputElement = null; // Store the element where text was selected
 
 // Listen for messages from background worker
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request);
   if (request.action === 'openSidebar') {
-    console.log('Opening sidebar with text:', request.text);
-    // Capture the active element (input/textarea/contenteditable)
-    activeInputElement = document.activeElement;
+    if (!request.text) {
+      console.error('No text provided to openSidebar');
+      sendResponse({ success: false, error: 'No text selected' });
+      return;
+    }
+    console.log('Opening sidebar with text:', request.text.substring(0, 50) + '...');
     openSidebar(request.text);
     sendResponse({ success: true });
   }
@@ -95,91 +104,164 @@ window.addEventListener('message', (event) => {
 
 // Insert text into the active input element
 function insertTextIntoElement(text) {
-  // Try to find the best element to insert into:
-  // 1. Use activeInputElement if it's still valid
-  // 2. Check if there's a currently focused editable element
-  // 3. Search for common compose elements on the page
-  // 4. Fall back to clipboard
+  // Priority order:
+  // 1. FIRST look for compose-specific elements (Gmail, LinkedIn, etc.)
+  // 2. Check if currently focused element is a valid compose target
+  // 3. Fall back to clipboard
 
   let targetElement = null;
 
-  // First check if there's a currently focused editable element
-  const currentActive = document.activeElement;
-  if (isEditableElement(currentActive)) {
-    targetElement = currentActive;
-  }
+  // First, always look for compose-specific elements - this is the most reliable
+  targetElement = findComposeElement();
 
-  // If not, use the stored activeInputElement if it's still in the DOM
-  if (!targetElement && activeInputElement && document.body.contains(activeInputElement)) {
-    targetElement = activeInputElement;
-  }
-
-  // If still not found, search for common compose elements
+  // If no compose element found, check if there's a currently focused editable
+  // that looks like a compose box (not a listitem, not the email being read)
   if (!targetElement) {
-    targetElement = findEditableElement();
+    const currentActive = document.activeElement;
+    if (isValidComposeTarget(currentActive)) {
+      targetElement = currentActive;
+    }
   }
 
   if (!targetElement) {
-    console.log('No editable element found, copying to clipboard');
+    console.log('No compose element found, copying to clipboard instead');
     navigator.clipboard.writeText(text);
+    // Notify user
+    showNotification('Draft copied to clipboard - paste it into your compose window');
     return;
   }
 
-  console.log('Inserting text into:', targetElement.tagName, targetElement);
+  console.log('Inserting text into:', targetElement.tagName, targetElement.getAttribute('aria-label'), targetElement);
 
   // Handle different element types
   if (targetElement.tagName === 'TEXTAREA' || targetElement.tagName === 'INPUT') {
     targetElement.value = text;
     targetElement.dispatchEvent(new Event('input', { bubbles: true }));
+    targetElement.focus();
   } else if (targetElement.isContentEditable || targetElement.contentEditable === 'true') {
+    targetElement.focus();
     targetElement.innerHTML = text.replace(/\n/g, '<br>');
     targetElement.dispatchEvent(new Event('input', { bubbles: true }));
-  } else {
-    const editableParent = targetElement.closest('[contenteditable="true"]');
-    if (editableParent) {
-      editableParent.innerHTML = text.replace(/\n/g, '<br>');
-      editableParent.dispatchEvent(new Event('input', { bubbles: true }));
-    } else {
-      navigator.clipboard.writeText(text);
-    }
   }
 }
 
-// Check if an element is editable
-function isEditableElement(el) {
+// Show a brief notification to the user
+function showNotification(message) {
+  const notification = document.createElement('div');
+  notification.textContent = message;
+  notification.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    z-index: 2147483647;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+  `;
+  document.body.appendChild(notification);
+  setTimeout(() => notification.remove(), 3000);
+}
+
+// Check if an element is a valid compose target (not a listitem, not read-only content)
+function isValidComposeTarget(el) {
   if (!el) return false;
-  return (
+
+  // Must be editable
+  const isEditable = (
     el.tagName === 'TEXTAREA' ||
     (el.tagName === 'INPUT' && ['text', 'email', 'search', 'url'].includes(el.type)) ||
     el.isContentEditable ||
     el.contentEditable === 'true'
   );
+
+  if (!isEditable) return false;
+
+  // Exclude elements that are clearly NOT compose boxes
+  const role = el.getAttribute('role');
+  if (role === 'listitem' || role === 'list' || role === 'option') {
+    return false;
+  }
+
+  // Check if it's likely a compose box by looking at aria-label
+  const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+  const composeKeywords = ['message', 'body', 'compose', 'reply', 'write', 'editor'];
+  if (composeKeywords.some(kw => ariaLabel.includes(kw))) {
+    return true;
+  }
+
+  // Check role="textbox" which is commonly used for compose areas
+  if (role === 'textbox') {
+    return true;
+  }
+
+  // For textareas/inputs, check name attribute
+  if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+    const name = (el.getAttribute('name') || '').toLowerCase();
+    if (composeKeywords.some(kw => name.includes(kw))) {
+      return true;
+    }
+    return true; // Textareas are usually compose targets
+  }
+
+  return false;
 }
 
-// Find common compose/message elements on the page
-function findEditableElement() {
-  const selectors = [
-    // Gmail compose
-    '[contenteditable="true"][aria-label*="message" i]',
-    '[contenteditable="true"][aria-label*="body" i]',
-    // LinkedIn
-    '[contenteditable="true"][aria-label*="compose" i]',
-    '[contenteditable="true"][role="textbox"]',
-    // Generic
-    'textarea[name*="message" i]',
-    'textarea[name*="body" i]',
-    'textarea:not([readonly])',
-    '[contenteditable="true"]'
+// Find compose-specific elements on the page (Gmail, LinkedIn, etc.)
+function findComposeElement() {
+  // Gmail-specific selectors (most specific first)
+  const gmailSelectors = [
+    // Gmail compose body - the editable div with role="textbox"
+    'div[role="textbox"][aria-label*="Body" i]',
+    'div[role="textbox"][aria-label*="Message" i]',
+    'div[role="textbox"][contenteditable="true"]',
+    // Gmail compose - class-based fallback
+    'div.Am.Al.editable[contenteditable="true"]',
+    'div[aria-label*="Message Body" i][contenteditable="true"]',
   ];
 
-  for (const selector of selectors) {
+  // Try Gmail selectors first
+  for (const selector of gmailSelectors) {
     const el = document.querySelector(selector);
-    if (el && document.body.contains(el)) {
+    if (el && document.body.contains(el) && isVisible(el)) {
+      return el;
+    }
+  }
+
+  // Generic compose selectors
+  const genericSelectors = [
+    // LinkedIn
+    '[contenteditable="true"][aria-label*="compose" i]',
+    '[contenteditable="true"][aria-label*="write" i]',
+    // Generic role-based
+    '[role="textbox"][contenteditable="true"]',
+    // Textarea fallbacks
+    'textarea[name*="message" i]',
+    'textarea[name*="body" i]',
+    'textarea[name*="compose" i]',
+  ];
+
+  for (const selector of genericSelectors) {
+    const el = document.querySelector(selector);
+    if (el && document.body.contains(el) && isVisible(el)) {
       return el;
     }
   }
 
   return null;
+}
+
+// Check if element is visible
+function isVisible(el) {
+  if (!el) return false;
+  const style = window.getComputedStyle(el);
+  return style.display !== 'none' &&
+         style.visibility !== 'hidden' &&
+         style.opacity !== '0' &&
+         el.offsetParent !== null;
 }
 
 // Allow closing sidebar with Escape key

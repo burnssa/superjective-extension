@@ -17,21 +17,61 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+// Send message to content script with retry logic
+async function sendMessageToTab(tabId, message, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, message);
+      console.log('Message sent successfully on attempt', attempt + 1);
+      return response;
+    } catch (err) {
+      console.log(`Attempt ${attempt + 1} failed:`, err.message);
+
+      if (attempt < maxRetries - 1) {
+        // Content script might not be loaded, try injecting it
+        if (err.message.includes('Receiving end does not exist')) {
+          console.log('Content script not found, injecting...');
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId },
+              files: ['content/content-script.js']
+            });
+            // Wait a bit for the script to initialize
+            await new Promise(resolve => setTimeout(resolve, 100));
+          } catch (injectErr) {
+            console.log('Failed to inject content script:', injectErr.message);
+          }
+        } else {
+          // Wait before retrying with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+        }
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 // Handle context menu click
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'generate-response') {
     const selectedText = info.selectionText;
     console.log('Context menu clicked, selected text:', selectedText);
 
-    // Send message to content script to open sidebar
-    chrome.tabs.sendMessage(tab.id, {
-      action: 'openSidebar',
-      text: selectedText
-    }).then(() => {
-      console.log('Message sent to content script');
-    }).catch(err => {
-      console.error('Failed to send message:', err);
-    });
+    if (!selectedText) {
+      console.error('No text was selected');
+      return;
+    }
+
+    try {
+      const response = await sendMessageToTab(tab.id, {
+        action: 'openSidebar',
+        text: selectedText
+      });
+      console.log('Message sent to content script, response:', response);
+    } catch (err) {
+      console.error('Failed to send message after retries:', err);
+    }
   }
 });
 
@@ -237,7 +277,14 @@ async function generateDrafts({ prompt, context }) {
   const token = await getAccessToken();
 
   // Build the full prompt with system instructions
-  const systemInstructions = `Generate a plain text email response. Do not use markdown formatting (no **, *, #, etc.). Write naturally as you would in an authentic email.`;
+  const systemInstructions = `[SUPERJECTIVE_EMAIL_DRAFT]
+Generate ONLY the email body text. Do not include:
+- Subject lines (no "Subject:" or "Re:")
+- To/From/CC headers
+- Placeholder brackets like [Recipient's Name], [Your Name], [Company], etc.
+- Markdown formatting (no **, *, #, etc.)
+
+Write the actual email body content only, starting directly with the greeting (e.g., "Hi," or "Dear Team,") and ending with your sign-off. Use natural, authentic language as if writing a real email.`;
 
   let fullPrompt = `${systemInstructions}\n\n${prompt}`;
   if (context) {
