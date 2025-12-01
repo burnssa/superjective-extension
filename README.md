@@ -29,6 +29,29 @@ All personally identifiable information (PII) is filtered **in your browser** be
 
 The filtering code is open source and verifiable in [`lib/pii-filter.js`](lib/pii-filter.js). We use [compromise](https://github.com/spencermountain/compromise) for NLP-based name detection.
 
+## Running Your Own Instance
+
+This extension requires a backend API to generate AI responses. To run your own instance:
+
+1. **Backend API**: Clone and run [superjective/spj_backend](https://github.com/superjective/spj_backend) locally, or deploy your own
+2. **Auth0 Tenant**: Create a free account at [auth0.com](https://auth0.com) and configure:
+   - A **Single Page Application** (get the Domain and Client ID)
+   - An **API** (get the Audience identifier)
+   - Add your extension's callback URL to Allowed Callback URLs (see step 4 below)
+3. **For production deployments**: Update `manifest.json` host_permissions to include your API domain (e.g., `"https://your-api.example.com/*"`)
+
+### Web Store Submission Checklist
+
+When preparing a build for Chrome Web Store submission:
+
+- [ ] **Create `config.js`** from `config.example.js` with production values:
+  - [ ] `API_BASE`: Your production API URL (e.g., `https://api.yourdomain.com`)
+  - [ ] `AUTH0_DOMAIN`: Your Auth0 tenant (e.g., `your-tenant.auth0.com`)
+  - [ ] `AUTH0_CLIENT_ID`: Your Auth0 SPA client ID
+  - [ ] `AUTH0_AUDIENCE`: Your Auth0 API identifier
+- [ ] **Update `manifest.json`** host_permissions:
+  - [ ] Add your production API domain (e.g., `"https://api.yourdomain.com/*"`)
+
 ## Installation
 
 ### 1. Clone the repository

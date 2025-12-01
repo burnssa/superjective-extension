@@ -13,7 +13,7 @@
   ],
 
   "host_permissions": [
-    "https://api.superjective.ai/*",
+    "http://localhost:*/*",
     "https://*.auth0.com/*"
   ],
 
