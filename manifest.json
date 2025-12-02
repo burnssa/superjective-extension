@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Superjective - AI Draft Generator",
   "version": "1.0.0",
-  "description": "Generate professional responses using multiple AI models with privacy-first PII filtering",
+  "description": "Generate message drafts with frontier AI. See the best from multiple providers - you control your data and own the final text.",
 
   "permissions": [
     "activeTab",
@@ -13,22 +13,13 @@
   ],
 
   "host_permissions": [
-    "http://localhost:*/*",
-    "https://*.auth0.com/*"
+    "http://localhost:*/*"
   ],
 
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
-
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content/content-script.js"],
-      "run_at": "document_end"
-    }
-  ],
 
   "web_accessible_resources": [
     {

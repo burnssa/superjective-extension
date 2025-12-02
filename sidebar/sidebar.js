@@ -29,6 +29,9 @@ const actionsSection = document.getElementById('actions-section');
 const regenerateBtn = document.getElementById('regenerate-btn');
 const piiNotice = document.getElementById('pii-notice');
 const insertHint = document.getElementById('insert-hint');
+const selectedTextDisplay = document.getElementById('selected-text-display');
+const selectedTextSection = document.getElementById('selected-text-section');
+const contextSection = document.getElementById('context-section');
 
 // PII Filter instance
 const piiFilter = new PIIFilter();
@@ -60,6 +63,8 @@ function setupMessageListener() {
     if (event.data.type === 'INIT_SIDEBAR') {
       console.log('Setting selectedText to:', event.data.selectedText);
       state.selectedText = event.data.selectedText;
+      // Display the selected text to the user
+      updateSelectedTextDisplay();
       // Don't auto-generate - let user add context first and click Generate
     }
 
@@ -104,10 +109,7 @@ async function handleLogin() {
     if (result.success) {
       state.authenticated = true;
       showScreen('main');
-      // Auto-generate if we have selected text
-      if (state.selectedText) {
-        handleGenerate();
-      }
+      // Don't auto-generate - let user add context first and click Generate
     } else {
       throw new Error(result.error || 'Login failed');
     }
@@ -140,7 +142,7 @@ function handleClose() {
 // Generate drafts
 async function handleGenerate() {
   if (!state.selectedText) {
-    showError('No text selected');
+    showError('Please select text on the page first, then click "Create AI Draft Responses" from the right-click menu.');
     return;
   }
 
@@ -252,6 +254,25 @@ function handleInsertDraft(text) {
 }
 
 // UI Updates
+function updateSelectedTextDisplay() {
+  if (state.selectedText && selectedTextDisplay) {
+    // Show the PII-filtered version so users see exactly what will be sent
+    const filteredText = piiFilter.filter(state.selectedText);
+    selectedTextDisplay.textContent = filteredText;
+
+    // Show PII notice if filtering occurred
+    if (filteredText !== state.selectedText) {
+      piiNotice.classList.remove('hidden');
+    }
+
+    // Enable generate button when we have text
+    generateBtn.disabled = false;
+  } else {
+    // Disable generate button when no text selected
+    generateBtn.disabled = true;
+  }
+}
+
 function updateUI() {
   // Loading state
   if (state.loading) {
@@ -280,7 +301,29 @@ function updateUI() {
     renderDrafts();
     actionsSection.classList.remove('hidden');
     insertHint.classList.remove('hidden');
+
+    // Hide input sections when viewing drafts (before selection)
+    // Show them again after a draft is selected
+    if (state.selectedDraftId === null) {
+      // Drafts shown, none selected yet - hide inputs to maximize draft space
+      selectedTextSection.classList.add('hidden');
+      contextSection.classList.add('hidden');
+      piiNotice.classList.add('hidden');
+    } else {
+      // Draft selected - show inputs again for potential regeneration
+      // Clear fields so user knows to re-select new text
+      selectedTextDisplay.textContent = '';
+      contextInput.value = '';
+      state.selectedText = '';
+      state.context = '';
+      generateBtn.disabled = true;
+      selectedTextSection.classList.remove('hidden');
+      contextSection.classList.remove('hidden');
+    }
   } else {
+    // No drafts - show input sections
+    selectedTextSection.classList.remove('hidden');
+    contextSection.classList.remove('hidden');
     insertHint.classList.add('hidden');
   }
 }

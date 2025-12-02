@@ -191,6 +191,53 @@ body {
   line-height: 1.4;
 }
 
+/* Selected Text Section */
+.selected-text-section {
+  padding: 16px;
+  padding-bottom: 0;
+}
+
+.selected-text-section label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.label-hint {
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.selected-text-box {
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+  max-height: 120px;
+  font-family: inherit;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.selected-text-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.selected-text-box::-webkit-scrollbar-track {
+  background: #e5e7eb;
+}
+
+.selected-text-box::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
 /* Context Section */
 .context-section {
   padding: 16px;
@@ -210,7 +257,7 @@ body {
   padding: 10px 12px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 14px;
+  font-size: 13px;
   resize: vertical;
   font-family: inherit;
 }

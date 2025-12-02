@@ -55,14 +55,11 @@ async function sendMessageToTab(tabId, message, maxRetries = 3) {
 // Handle context menu click
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'generate-response') {
-    const selectedText = info.selectionText;
+    // Trim whitespace - treat whitespace-only as empty
+    const selectedText = (info.selectionText || '').trim();
     console.log('Context menu clicked, selected text:', selectedText);
 
-    if (!selectedText) {
-      console.error('No text was selected');
-      return;
-    }
-
+    // Always open sidebar - let it show error if no text selected
     try {
       const response = await sendMessageToTab(tab.id, {
         action: 'openSidebar',
@@ -278,7 +275,7 @@ async function generateDrafts({ prompt, context }) {
 
   // Build the full prompt with system instructions
   const systemInstructions = `[SUPERJECTIVE_EMAIL_DRAFT]
-Generate ONLY the email body text. Do not include:
+Write a reply to the following message. Generate ONLY the email body text. Do not include:
 - Subject lines (no "Subject:" or "Re:")
 - To/From/CC headers
 - Placeholder brackets like [Recipient's Name], [Your Name], [Company], etc.
@@ -286,9 +283,9 @@ Generate ONLY the email body text. Do not include:
 
 Write the actual email body content only, starting directly with the greeting (e.g., "Hi," or "Dear Team,") and ending with your sign-off. Use natural, authentic language as if writing a real email.`;
 
-  let fullPrompt = `${systemInstructions}\n\n${prompt}`;
+  let fullPrompt = `${systemInstructions}\n\nMessage to reply to:\n${prompt}`;
   if (context) {
-    fullPrompt += `\n\nContext: ${context}`;
+    fullPrompt += `\n\nAdditional context for your reply: ${context}`;
   }
 
   // Step 1: Create comparison

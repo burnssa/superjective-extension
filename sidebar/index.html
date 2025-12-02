@@ -54,12 +54,18 @@
         <button id="pii-details-btn" class="btn-link">Details</button>
       </div>
 
+      <!-- Selected Text Display -->
+      <div id="selected-text-section" class="selected-text-section">
+        <label>Message you're replying to <span class="label-hint">(select new text and generate to update)</span></label>
+        <div id="selected-text-display" class="selected-text-box"></div>
+      </div>
+
       <!-- Context Field -->
-      <div class="context-section">
+      <div id="context-section" class="context-section">
         <label for="context-input">Additional Context (optional)</label>
         <textarea
           id="context-input"
-          placeholder="Job description, background info, tone preferences..."
+          placeholder="Other background info, tone preferences, content to include..."
           rows="3"
         ></textarea>
         <button id="generate-btn" class="btn btn-primary">Generate with Context</button>

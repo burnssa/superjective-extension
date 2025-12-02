@@ -14,13 +14,10 @@ let sidebarIframe = null;
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request);
   if (request.action === 'openSidebar') {
-    if (!request.text) {
-      console.error('No text provided to openSidebar');
-      sendResponse({ success: false, error: 'No text selected' });
-      return;
-    }
-    console.log('Opening sidebar with text:', request.text.substring(0, 50) + '...');
-    openSidebar(request.text);
+    // Always open sidebar - let it handle showing error if no text
+    const text = request.text || '';
+    console.log('Opening sidebar with text:', text ? text.substring(0, 50) + '...' : '(empty)');
+    openSidebar(text);
     sendResponse({ success: true });
   }
 });
