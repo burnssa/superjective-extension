@@ -32,6 +32,9 @@ const insertHint = document.getElementById('insert-hint');
 const selectedTextDisplay = document.getElementById('selected-text-display');
 const selectedTextSection = document.getElementById('selected-text-section');
 const contextSection = document.getElementById('context-section');
+const consentScreen = document.getElementById('consent-screen');
+const consentCheck = document.getElementById('consent-check');
+const consentBtn = document.getElementById('consent-btn');
 
 // PII Filter instance
 const piiFilter = new PIIFilter();
@@ -46,8 +49,19 @@ async function init() {
   state.authenticated = authStatus.authenticated;
 
   if (state.authenticated) {
-    showScreen('main');
-    // Don't auto-generate - let user add context first
+    // Check terms status from backend API
+    try {
+      const termsStatus = await sendMessage({ action: 'checkTermsStatus' });
+      if (termsStatus.requires_acceptance) {
+        showScreen('consent');
+      } else {
+        showScreen('main');
+      }
+    } catch (error) {
+      // If terms check fails, allow access (graceful degradation)
+      console.error('Terms check failed:', error);
+      showScreen('main');
+    }
   } else {
     showScreen('auth');
   }
@@ -86,6 +100,12 @@ function setupEventListeners() {
   retryBtn.addEventListener('click', () => handleGenerate());
   regenerateBtn.addEventListener('click', () => handleGenerate());
 
+  // Consent screen handlers
+  consentCheck.addEventListener('change', () => {
+    consentBtn.disabled = !consentCheck.checked;
+  });
+  consentBtn.addEventListener('click', handleConsent);
+
   contextInput.addEventListener('input', (e) => {
     state.context = e.target.value;
   });
@@ -108,8 +128,18 @@ async function handleLogin() {
     const result = await sendMessage({ action: 'login' });
     if (result.success) {
       state.authenticated = true;
-      showScreen('main');
-      // Don't auto-generate - let user add context first and click Generate
+      // Check terms status after successful login
+      try {
+        const termsStatus = await sendMessage({ action: 'checkTermsStatus' });
+        if (termsStatus.requires_acceptance) {
+          showScreen('consent');
+        } else {
+          showScreen('main');
+        }
+      } catch (error) {
+        console.error('Terms check failed:', error);
+        showScreen('main');
+      }
     } else {
       throw new Error(result.error || 'Login failed');
     }
@@ -137,6 +167,21 @@ async function handleLogout() {
 
 function handleClose() {
   window.parent.postMessage({ type: 'CLOSE_SIDEBAR' }, '*');
+}
+
+// Consent handler
+async function handleConsent() {
+  consentBtn.disabled = true;
+  consentBtn.textContent = 'Accepting...';
+
+  try {
+    await sendMessage({ action: 'acceptTerms' });
+    showScreen('main');
+  } catch (error) {
+    alert('Failed to accept terms: ' + error.message);
+    consentBtn.disabled = false;
+    consentBtn.textContent = 'Continue';
+  }
 }
 
 // Generate drafts
@@ -389,10 +434,13 @@ function renderDrafts() {
 
 function showScreen(screen) {
   authScreen.classList.add('hidden');
+  consentScreen.classList.add('hidden');
   mainScreen.classList.add('hidden');
 
   if (screen === 'auth') {
     authScreen.classList.remove('hidden');
+  } else if (screen === 'consent') {
+    consentScreen.classList.remove('hidden');
   } else if (screen === 'main') {
     mainScreen.classList.remove('hidden');
   }

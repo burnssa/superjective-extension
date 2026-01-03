@@ -25,6 +25,29 @@
       </div>
     </div>
 
+    <!-- Consent Screen -->
+    <div id="consent-screen" class="screen hidden">
+      <div class="consent-content">
+        <div class="logo">
+          <svg width="120" height="100" viewBox="30 20 130 80" xmlns="http://www.w3.org/2000/svg">
+            <rect x="40" y="30" width="60" height="60" rx="12" fill="#5C6BC0" />
+            <rect x="70" y="50" width="40" height="40" rx="10" fill="#FFFFFF" />
+            <rect x="90" y="30" width="60" height="60" rx="12" fill="#4285F4" />
+          </svg>
+        </div>
+        <h1>Almost there</h1>
+        <p>Please review and accept our terms to continue.</p>
+        <div class="consent-checkbox">
+          <input type="checkbox" id="consent-check">
+          <label for="consent-check">
+            I agree to the <a href="https://superjective.ai/terms" target="_blank" rel="noopener">Terms of Service</a>
+            and <a href="https://superjective.ai/privacy" target="_blank" rel="noopener">Privacy Policy</a>
+          </label>
+        </div>
+        <button id="consent-btn" class="btn btn-primary" disabled>Continue</button>
+      </div>
+    </div>
+
     <!-- Main Screen -->
     <div id="main-screen" class="screen hidden">
       <!-- Header -->

@@ -67,6 +67,71 @@ body {
   border-radius: 8px;
 }
 
+/* Consent Screen */
+.consent-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+}
+
+.consent-content .logo {
+  margin-bottom: 24px;
+}
+
+.consent-content h1 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #111827;
+}
+
+.consent-content p {
+  color: #6b7280;
+  margin-bottom: 24px;
+  font-size: 15px;
+}
+
+.consent-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  margin-bottom: 24px;
+  max-width: 280px;
+}
+
+.consent-checkbox input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.consent-checkbox label {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.consent-checkbox a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.consent-checkbox a:hover {
+  text-decoration: underline;
+}
+
+.consent-content .btn-primary {
+  width: 100%;
+  max-width: 280px;
+  padding: 12px 24px;
+  font-size: 15px;
+  border-radius: 8px;
+}
+
 /* Header */
 .header {
   display: flex;

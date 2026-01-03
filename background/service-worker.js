@@ -108,6 +108,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(error => sendResponse({ error: error.message }));
     return true;
   }
+
+  if (request.action === 'checkTermsStatus') {
+    checkTermsStatus()
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true;
+  }
+
+  if (request.action === 'acceptTerms') {
+    acceptTerms()
+      .then(sendResponse)
+      .catch(error => sendResponse({ error: error.message }));
+    return true;
+  }
 });
 
 // Auth0 OAuth Flow
@@ -374,6 +388,48 @@ async function completeDrafts({ comparisonId, bestResponseId, responseFeedback }
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail?.message || 'Failed to complete comparison');
+  }
+
+  return response.json();
+}
+
+// Terms of Service
+const TERMS_VERSION = '2025-06-29';
+
+async function checkTermsStatus() {
+  const token = await getAccessToken();
+
+  const response = await fetch(`${API_BASE}/api/auth/terms-status/`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to check terms status');
+  }
+
+  return response.json();
+}
+
+async function acceptTerms() {
+  const token = await getAccessToken();
+
+  const response = await fetch(`${API_BASE}/api/auth/accept-terms/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      terms_version: TERMS_VERSION,
+      accepted_at: new Date().toISOString()
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to accept terms');
   }
 
   return response.json();
